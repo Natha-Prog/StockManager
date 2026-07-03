@@ -23,6 +23,9 @@ COPY backend/ ./
 # Copier le frontend build depuis le stage précédent
 COPY --from=frontend-build /app/frontend/dist ./public
 
+# Copier les fichiers statiques du frontend (logo.png, etc.)
+COPY --from=frontend-build /app/frontend/public ./public
+
 # Variables d'environnement
 ENV NODE_ENV=production
 ENV PORT=5000
