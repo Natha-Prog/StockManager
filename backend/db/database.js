@@ -1,10 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const { dbPath } = require('../config/env');
+const pool = require('./postgres');
 
 let db = null;
+const usePostgres = process.env.DATABASE_URL;
 
 function run(sql, params = []) {
+  if (usePostgres) {
+    return pool.query(sql, params).then(result => ({
+      lastID: result.rows[0]?.id,
+      changes: result.rowCount
+    }));
+  }
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
       if (err) reject(err);
@@ -14,6 +22,9 @@ function run(sql, params = []) {
 }
 
 function get(sql, params = []) {
+  if (usePostgres) {
+    return pool.query(sql, params).then(result => result.rows[0]);
+  }
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
       if (err) reject(err);
@@ -23,6 +34,9 @@ function get(sql, params = []) {
 }
 
 function all(sql, params = []) {
+  if (usePostgres) {
+    return pool.query(sql, params).then(result => result.rows);
+  }
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
       if (err) reject(err);
@@ -32,6 +46,14 @@ function all(sql, params = []) {
 }
 
 async function initializeTables() {
+  if (usePostgres) {
+    await initializePostgresTables();
+  } else {
+    await initializeSqliteTables();
+  }
+}
+
+async function initializeSqliteTables() {
   await run('PRAGMA foreign_keys = ON');
 
   await run(`CREATE TABLE IF NOT EXISTS users (
@@ -66,7 +88,6 @@ async function initializeTables() {
     FOREIGN KEY (user_id) REFERENCES users(id)
   )`);
 
-  // Migration: add user_id column if missing (existing DBs)
   const columns = await all('PRAGMA table_info(stock_movements)');
   const hasUserId = columns.some((c) => c.name === 'user_id');
   if (!hasUserId) {
@@ -82,7 +103,55 @@ async function initializeTables() {
   )`);
 }
 
+async function initializePostgresTables() {
+  await run(`CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('admin', 'operator')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS products (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    reference TEXT UNIQUE NOT NULL,
+    category TEXT,
+    price REAL NOT NULL,
+    stock INTEGER DEFAULT 0,
+    min_stock INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS stock_movements (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL,
+    user_id INTEGER,
+    type TEXT NOT NULL CHECK(type IN ('entry', 'exit')),
+    quantity INTEGER NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS user_settings (
+    user_id INTEGER PRIMARY KEY,
+    language TEXT DEFAULT 'fr',
+    currency TEXT DEFAULT 'EUR',
+    date_format TEXT DEFAULT 'fr-FR',
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  )`);
+}
+
 function connect() {
+  if (usePostgres) {
+    return initializeTables().then(() => {
+      console.log('Connected to PostgreSQL database');
+      return pool;
+    });
+  }
   return new Promise((resolve, reject) => {
     db = new sqlite3.Database(dbPath, async (err) => {
       if (err) {
@@ -101,6 +170,9 @@ function connect() {
 }
 
 function close() {
+  if (usePostgres) {
+    return pool.end();
+  }
   return new Promise((resolve, reject) => {
     if (!db) {
       resolve();
