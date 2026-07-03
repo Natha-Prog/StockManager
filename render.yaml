@@ -1,9 +1,7 @@
 services:
   - type: web
-    name: stockmanager-backend
-    env: node
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    name: stockmanager
+    env: docker
     plan: free
     envVars:
       - key: PORT
@@ -19,21 +17,11 @@ services:
       - key: JWT_EXPIRES_IN
         value: 8h
       - key: CORS_ORIGIN
-        value: https://stockmanager-frontend.onrender.com
+        value: https://stockmanager.onrender.com
       - key: ADMIN_EMAIL
         value: admin@stock.local
       - key: ADMIN_PASSWORD
         generateValue: true
-
-  - type: web
-    name: stockmanager-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
-    publishDir: frontend/dist
-    plan: free
-    envVars:
-      - key: VITE_API_URL
-        value: https://stockmanager-backend.onrender.com/api
 
 databases:
   - name: stockmanager-db
