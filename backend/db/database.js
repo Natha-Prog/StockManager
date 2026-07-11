@@ -1,16 +1,26 @@
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const { dbPath } = require('../config/env');
 const pool = require('./postgres');
 
 let db = null;
-const usePostgres = process.env.DATABASE_URL;
+const usePostgres = Boolean(process.env.DATABASE_URL);
+
+/** Convertit les placeholders SQLite (?) en Postgres ($1, $2, …). */
+function preparePgSql(sql) {
+  let i = 0;
+  let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+  const upper = pgSql.trim().toUpperCase();
+  if (upper.startsWith('INSERT') && !/\bRETURNING\b/i.test(pgSql)) {
+    pgSql = pgSql.replace(/;?\s*$/, '') + ' RETURNING id';
+  }
+  return pgSql;
+}
 
 function run(sql, params = []) {
   if (usePostgres) {
-    return pool.query(sql, params).then(result => ({
+    return pool.query(preparePgSql(sql), params).then((result) => ({
       lastID: result.rows[0]?.id,
-      changes: result.rowCount
+      changes: result.rowCount,
     }));
   }
   return new Promise((resolve, reject) => {
@@ -23,7 +33,7 @@ function run(sql, params = []) {
 
 function get(sql, params = []) {
   if (usePostgres) {
-    return pool.query(sql, params).then(result => result.rows[0]);
+    return pool.query(preparePgSql(sql), params).then((result) => result.rows[0]);
   }
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -35,7 +45,7 @@ function get(sql, params = []) {
 
 function all(sql, params = []) {
   if (usePostgres) {
-    return pool.query(sql, params).then(result => result.rows);
+    return pool.query(preparePgSql(sql), params).then((result) => result.rows);
   }
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -43,6 +53,49 @@ function all(sql, params = []) {
       else resolve(rows);
     });
   });
+}
+
+/** Exécute fn({ run, get, all }) dans une transaction (même connexion Postgres). */
+async function withTransaction(fn) {
+  if (usePostgres) {
+    const client = await pool.connect();
+    const tx = {
+      run: (sql, params = []) =>
+        client.query(preparePgSql(sql), params).then((result) => ({
+          lastID: result.rows[0]?.id,
+          changes: result.rowCount,
+        })),
+      get: (sql, params = []) =>
+        client.query(preparePgSql(sql), params).then((result) => result.rows[0]),
+      all: (sql, params = []) =>
+        client.query(preparePgSql(sql), params).then((result) => result.rows),
+    };
+    try {
+      await client.query('BEGIN');
+      const result = await fn(tx);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        /* ignore */
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  await run('BEGIN TRANSACTION');
+  try {
+    const result = await fn({ run, get, all });
+    await run('COMMIT');
+    return result;
+  } catch (err) {
+    await run('ROLLBACK');
+    throw err;
+  }
 }
 
 async function initializeTables() {
@@ -188,4 +241,4 @@ function close() {
   });
 }
 
-module.exports = { connect, close, run, get, all };
+module.exports = { connect, close, run, get, all, withTransaction, usePostgres };

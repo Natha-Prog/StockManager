@@ -1,10 +1,16 @@
 const express = require('express');
-const { all, get } = require('../db/database');
+const { all, get, usePostgres } = require('../db/database');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(authenticate);
+
+const weekFilter = usePostgres
+  ? `created_at >= NOW() - INTERVAL '7 days'`
+  : `created_at >= datetime('now', '-7 days')`;
+
+const dateExpr = usePostgres ? `created_at::date` : `date(created_at)`;
 
 router.get('/', async (req, res, next) => {
   try {
@@ -12,7 +18,7 @@ router.get('/', async (req, res, next) => {
     const totalStock = await get('SELECT SUM(stock) as total FROM products');
     const lowStock = await get('SELECT COUNT(*) as low FROM products WHERE stock < min_stock');
     const movementsThisWeek = await get(
-      `SELECT COUNT(*) as movements FROM stock_movements WHERE created_at >= datetime('now', '-7 days')`
+      `SELECT COUNT(*) as movements FROM stock_movements WHERE ${weekFilter}`
     );
     const totalValue = await get('SELECT SUM(price * stock) as value FROM products');
 
@@ -34,21 +40,21 @@ router.get('/', async (req, res, next) => {
     );
 
     const weeklyChart = await all(
-      `SELECT date(created_at) as date,
+      `SELECT ${dateExpr} as date,
               SUM(CASE WHEN type = 'entry' THEN quantity ELSE 0 END) as entries,
               SUM(CASE WHEN type = 'exit' THEN quantity ELSE 0 END) as exits
        FROM stock_movements
-       WHERE created_at >= datetime('now', '-7 days')
-       GROUP BY date(created_at)
+       WHERE ${weekFilter}
+       GROUP BY ${dateExpr}
        ORDER BY date ASC`
     );
 
     res.json({
-      totalProducts: totalProducts.total,
-      totalStock: totalStock.total || 0,
-      lowStockProducts: lowStock.low,
-      movementsThisWeek: movementsThisWeek.movements,
-      totalValue: totalValue.value || 0,
+      totalProducts: Number(totalProducts.total),
+      totalStock: Number(totalStock.total) || 0,
+      lowStockProducts: Number(lowStock.low),
+      movementsThisWeek: Number(movementsThisWeek.movements),
+      totalValue: Number(totalValue.value) || 0,
       recentMovements,
       lowStockItems,
       weeklyChart,

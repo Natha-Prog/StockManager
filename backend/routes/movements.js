@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, query } = require('express-validator');
-const { get, all, run } = require('../db/database');
+const { get, all, withTransaction } = require('../db/database');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { AppError } = require('../middleware/errorHandler');
@@ -104,22 +104,19 @@ router.post(
 
       const stockChange = type === 'entry' ? quantity : -quantity;
 
-      await run('BEGIN TRANSACTION');
-      try {
-        const result = await run(
+      const movement = await withTransaction(async (tx) => {
+        const result = await tx.run(
           `INSERT INTO stock_movements (product_id, user_id, type, quantity, reason)
            VALUES (?, ?, ?, ?, ?)`,
           [product_id, req.user.id, type, quantity, reason || null]
         );
 
-        await run(
+        await tx.run(
           `UPDATE products SET stock = stock + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
           [stockChange, product_id]
         );
 
-        await run('COMMIT');
-
-        const movement = await get(
+        return tx.get(
           `SELECT sm.*, p.name as product_name, p.reference, u.email as user_email
            FROM stock_movements sm
            JOIN products p ON sm.product_id = p.id
@@ -127,12 +124,9 @@ router.post(
            WHERE sm.id = ?`,
           [result.lastID]
         );
+      });
 
-        res.status(201).json(movement);
-      } catch (txErr) {
-        await run('ROLLBACK');
-        throw txErr;
-      }
+      res.status(201).json(movement);
     } catch (err) {
       next(err);
     }

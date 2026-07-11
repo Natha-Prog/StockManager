@@ -86,7 +86,15 @@ async function start() {
 
 if (require.main === module) {
   start().catch((err) => {
-    console.error('Failed to start server:', err);
+    console.error('Failed to start server:', err.message || err);
+    if (err.code) console.error('Error code:', err.code);
+    if (process.env.DATABASE_URL) {
+      console.error(
+        'Hint: vérifiez DATABASE_URL sur Render (user postgres.<ref>, mot de passe DB Supabase, sans guillemets).'
+      );
+    } else {
+      console.error('Hint: DATABASE_URL est absent.');
+    }
     process.exit(1);
   });
 }
