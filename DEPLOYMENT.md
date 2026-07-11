@@ -36,7 +36,7 @@ Les tables (`users`, `products`, etc.) sont créées automatiquement au démarra
 | Variable | Valeur |
 |----------|--------|
 | `DATABASE_URL` | URI Postgres Supabase (étape 1) |
-| `CORS_ORIGIN` | URL Vercel, ex. `https://votre-app.vercel.app` |
+| `CORS_ORIGIN` | URL Vercel, ex. `https://votre-app.vercel.app` ou `https://*.vercel.app` |
 | `ADMIN_EMAIL` | Email admin initial |
 | `ADMIN_PASSWORD` | Mot de passe admin initial |
 

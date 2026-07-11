@@ -3,7 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
-const { port, corsOrigin } = require('./config/env');
+const { port, corsOrigin, corsOriginList } = require('./config/env');
 const { connect, close } = require('./db/database');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const { seedAdmin } = require('./seed/seed');
@@ -25,6 +25,7 @@ app.use(helmet({
 }));
 
 app.use(cors({ origin: corsOrigin, credentials: true }));
+console.log('CORS allowed patterns:', corsOriginList.join(', ') || '(none)');
 app.use(express.json({ limit: '1mb' }));
 
 const publicDir = path.join(__dirname, 'public');
