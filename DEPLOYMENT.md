@@ -1,9 +1,9 @@
-# Déploiement : Netlify + Render + Supabase
+# Déploiement : Vercel + Render + Supabase
 
 Architecture :
 
 ```
-Netlify   → frontend React (statique)
+Vercel    → frontend React (statique)
 Render    → API Express (Node)
 Supabase  → PostgreSQL
 ```
@@ -36,46 +36,54 @@ Les tables (`users`, `products`, etc.) sont créées automatiquement au démarra
 | Variable | Valeur |
 |----------|--------|
 | `DATABASE_URL` | URI Postgres Supabase (étape 1) |
-| `CORS_ORIGIN` | URL Netlify, ex. `https://votre-app.netlify.app` |
+| `CORS_ORIGIN` | URL Vercel, ex. `https://votre-app.vercel.app` |
 | `ADMIN_EMAIL` | Email admin initial |
 | `ADMIN_PASSWORD` | Mot de passe admin initial |
 
 `JWT_SECRET` est généré automatiquement.
 
-5. Après le déploiement, notez l’URL API, ex. `https://stockmanager-backend.onrender.com`
-6. Vérifiez : `https://stockmanager-backend.onrender.com/api/health`
+5. Après le déploiement, notez l’URL API, ex. `https://stockmanager-3.onrender.com`
+6. Vérifiez : `https://stockmanager-3.onrender.com/api/health`
 
 > Plan gratuit Render : le service s’endort après inactivité (~15 min). Le premier appel peut prendre ~30–50 s.
 
-## 3. Netlify (frontend)
+## 3. Vercel (frontend)
 
-1. Sur https://app.netlify.com → **Add new site** → **Import an existing project**
-2. Connectez le dépôt GitHub
-3. Netlify détecte `netlify.toml` :
-   - Base : `frontend`
-   - Build : `npm run build`
-   - Publish : `dist`
-4. Ajoutez la variable d’environnement (Site settings → Environment variables) :
+1. Sur https://vercel.com → **Add New…** → **Project**
+2. Importez le dépôt GitHub `StockManager`
+3. Configurez le projet :
+   - **Framework Preset** : Vite
+   - **Root Directory** : `frontend` (bouton *Edit*)
+   - **Build Command** : `npm run build` (détecté)
+   - **Output Directory** : `dist` (détecté)
+4. Ajoutez la variable d’environnement :
 
 | Variable | Valeur |
 |----------|--------|
-| `VITE_API_URL` | `https://stockmanager-backend.onrender.com/api` |
+| `VITE_API_URL` | `https://stockmanager-3.onrender.com/api` |
 
-5. Déployez (ou redéployez après avoir ajouté `VITE_API_URL` — Vite l’injecte au **build**)
+5. **Deploy**
+
+> `VITE_API_URL` est injectée au **build** : si vous la changez après, refaites un déploiement.
+
+Le fichier `frontend/vercel.json` gère le routing SPA (React Router).
 
 ## 4. Finaliser CORS
 
-Dès que l’URL Netlify est connue :
+Dès que l’URL Vercel est connue :
 
 1. Sur Render → service backend → Environment
-2. Mettez `CORS_ORIGIN` = `https://votre-app.netlify.app` (sans slash final)
+2. Mettez `CORS_ORIGIN` = `https://votre-app.vercel.app` (sans slash final)
 3. Redéployez le backend si besoin
+
+Si vous avez aussi un domaine custom Vercel, ajoutez-le (séparé par des virgules) :
+`https://votre-app.vercel.app,https://www.votredomaine.com`
 
 ## Ordre recommandé
 
 1. Supabase (récupérer `DATABASE_URL`)
 2. Render (déployer l’API)
-3. Netlify (déployer le frontend avec `VITE_API_URL`)
+3. Vercel (déployer le frontend avec `VITE_API_URL`)
 4. Mettre à jour `CORS_ORIGIN` sur Render
 
 ## Compte admin
@@ -87,6 +95,7 @@ Créé au premier démarrage de l’API avec `ADMIN_EMAIL` / `ADMIN_PASSWORD`. C
 | Problème | À vérifier |
 |----------|------------|
 | Erreur connexion DB | `DATABASE_URL` correcte, mot de passe sans caractères mal encodés (`@` → `%40`, etc.), SSL (activé en production) |
-| CORS bloqué | `CORS_ORIGIN` = URL Netlify exacte (`https://...`) |
-| Frontend sans API | `VITE_API_URL` défini **avant** le build Netlify, puis redeploy |
+| CORS bloqué | `CORS_ORIGIN` = URL Vercel exacte (`https://...`) |
+| Frontend sans API | `VITE_API_URL` défini **avant** le build Vercel, puis redeploy |
 | API lente au réveil | Normal sur le free tier Render (cold start) |
+| 404 sur refresh d’une route | Vérifier `frontend/vercel.json` (rewrites SPA) |

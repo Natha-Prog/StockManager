@@ -1,4 +1,4 @@
-# Backend API uniquement — la DB est sur Supabase, le frontend sur Netlify
+# Backend API uniquement — la DB est sur Supabase, le frontend sur Vercel
 services:
   - type: web
     name: stockmanager-backend
@@ -20,7 +20,7 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 8h
-      # Remplacer par l'URL Netlify réelle après le premier déploiement
+      # Remplacer par l'URL Vercel réelle après le premier déploiement
       - key: CORS_ORIGIN
         sync: false
       - key: ADMIN_EMAIL

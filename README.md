@@ -107,7 +107,7 @@ npm test
 
 ## Déploiement (production)
 
-- **Netlify** → frontend  
+- **Vercel** → frontend  
 - **Render** → API Express  
 - **Supabase** → PostgreSQL  
 
