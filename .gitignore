@@ -3,6 +3,12 @@ node_modules/
 package-lock.json
 yarn.lock
 
+# Secrets
+.env
+.env.local
+backend/.env
+frontend/.env
+
 # Database
 backend/stock.db
 backend/stock.db-shm

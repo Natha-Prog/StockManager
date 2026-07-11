@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const fs = require('fs');
 const path = require('path');
 const { port, corsOrigin } = require('./config/env');
 const { connect, close } = require('./db/database');
@@ -26,9 +27,12 @@ app.use(helmet({
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
-// Servir les fichiers statiques du frontend en production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'public'), {
+const publicDir = path.join(__dirname, 'public');
+const serveFrontend = process.env.NODE_ENV === 'production' && fs.existsSync(path.join(publicDir, 'index.html'));
+
+// Servir le frontend uniquement si le build est présent (Docker mono-service)
+if (serveFrontend) {
+  app.use(express.static(publicDir, {
     maxAge: '1d',
     etag: true
   }));
@@ -42,14 +46,12 @@ app.use('/api/stock-movements', movementRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/settings', settingsRoutes);
 
-// En production, servir index.html pour les routes SPA
-if (process.env.NODE_ENV === 'production') {
+if (serveFrontend) {
   app.get('*', (req, res) => {
-    // Ne pas intercepter les requêtes API
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ error: 'Not found' });
     }
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(publicDir, 'index.html'));
   });
 }
 

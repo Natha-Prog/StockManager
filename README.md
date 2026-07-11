@@ -105,7 +105,15 @@ cd backend
 npm test
 ```
 
-## Déploiement Docker
+## Déploiement (production)
+
+- **Netlify** → frontend  
+- **Render** → API Express  
+- **Supabase** → PostgreSQL  
+
+Voir le guide détaillé : [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+## Déploiement Docker (local / mono-service)
 
 ```bash
 # Créer un fichier .env à la racine avec JWT_SECRET
