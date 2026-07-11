@@ -45,7 +45,7 @@ export const translations = {
       defaultAccount: 'Compte par défaut : admin@stock.local / admin123',
       loginSuccess: 'Connexion réussie',
       wrongCredentials: 'Email ou mot de passe incorrect',
-      serverError: 'Impossible de joindre le serveur. Démarrez le backend avec : npm run dev',
+      serverError: 'Impossible de joindre le serveur. Vérifiez VITE_API_URL (Vercel) et que l’API Render est démarrée.',
       connectionError: 'Erreur de connexion',
     },
     roles: {
@@ -201,7 +201,7 @@ export const translations = {
       defaultAccount: 'Default account: admin@stock.local / admin123',
       loginSuccess: 'Signed in successfully',
       wrongCredentials: 'Incorrect email or password',
-      serverError: 'Cannot reach server. Start the backend with: npm run dev',
+      serverError: 'Cannot reach server. Check VITE_API_URL (Vercel) and that the Render API is up.',
       connectionError: 'Connection error',
     },
     roles: {
